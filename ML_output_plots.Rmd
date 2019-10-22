@@ -50,7 +50,7 @@ write.csv(allp1, here::here("results_csvs/phase1/all_sites_seasons.csv"), row.na
 ```
 
 
-```{r, eval = FALSE}
+```{r, echo = FALSE}
 
 allp1<-read.csv(here::here("results_csvs/phase1/all_sites_seasons.csv"), stringsAsFactors = FALSE)
 colnames(allp1)<-c("row_no", "IMG_ID","unsure", "Animal", "NoAnimal", "ConfAnim", "ConfNoAnim", "SiteSeason")
@@ -60,7 +60,7 @@ colnames(allp1)<-c("row_no", "IMG_ID","unsure", "Animal", "NoAnimal", "ConfAnim"
 
 Formatting the ML output - this is specific to the kenya data but it just creates a new columns for Site and Season 
 
-```{r, eval = FALSE}
+```{r, echo = FALSE}
 
 allp1$Site<-allp1$SiteSeason%>%
               gsub("_november_results.csv", "", .)%>%
@@ -231,7 +231,7 @@ ggplot(sitesum, aes(x =Site_f ,y = Freq ,alpha = SumAnimalF, fill = Site_f))+
 ###Image counts with effort accounted for
 
 ```{r}
-ef<-read.csv(here::here("effort/all_sites_effort.csv"), stringsAsFactors = FALSE)
+ef<-read.csv("all_sites_effort.csv", stringsAsFactors = FALSE)
 
 ef_sum <-ef %>%
   group_by(site)%>%
