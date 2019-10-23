@@ -20,6 +20,7 @@ library(stringr)
 library(reshape2)
 library(readr)
 library(scales)
+library(vroom)
 
 ```
 
@@ -159,7 +160,7 @@ df_all$Site<-as.factor(df_all$Site)
 
 ```{r, echo = FALSE}
 
-df_all<-read.csv("Kenya_Animal_No_Animal.csv", stringsAsFactors = FALSE)
+df_all<-vroom::vroom("Kenya_Animal_No_Animal.csv")
 
 df_all$Site_f<-as.factor(df_all$Site)
 df_all$Site_f<-factor(df_all$Site_f, levels(df_all$Site_f)[c(5,2,4,3,1)])
@@ -176,7 +177,33 @@ df_all$SiteCode[df_all$SiteCode == "mara_triangle"]<-"MT"
 df_all$SiteCode[df_all$SiteCode == "naboisho"]<-"NB"
 df_all$SiteCode[df_all$SiteCode == "omc"]<-"OMC"
 
+
+
 ```
+
+```{r}
+image<-vroom::vroom("kenya_original_filepaths_working_filepaths_2019_10_18.csv",delim = ",")
+
+image$ID_unique<-image$filepath %>% 
+                    gsub("M:/biome_health_project_files/country_files/kenya/raw_data//", "", .) %>%                        gsub(".JPG", "", . )%>% 
+                    gsub("_november", "/november", .) %>% 
+                    gsub("_october", "/october", .) %>% 
+                    gsub("_repaired", "", .) %>% 
+                    gsub("/100_BTCF","", . )
+
+df_sub<-df_all %>% 
+  filter(Site != "Total" & Site_f != "Total")
+
+
+df_image<-merge(image[,c("ID_unique", "new_file_structure")], df_sub, by = "ID_unique")
+
+
+not_in<-image[!image$ID_unique %in% df_sub$ID_unique,]
+
+```
+
+###The rest of the code is just for making various plots of the data
+
 
 ```{r}
 ggplot(df_all, aes(SumAnimalF, fill = SumAnimalF))+
