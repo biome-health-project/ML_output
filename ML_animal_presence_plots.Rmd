@@ -109,12 +109,15 @@ alldf$ID_unique<-paste(alldf$Site, alldf$Season, alldf$IMG_ID_nospl, sep = "/")
 alldf<-alldf %>%
   group_by(ID_unique)%>%
   mutate(SumAnimal = sum(Animal), MeanConf = mean(ConfAnim), MaxConf = max(ConfAnim))
-
+  ungroup()
+  
 alldf$Camera<-dirname(alldf$IMG_ID)
 
 
 df<-alldf%>%
-  dplyr::select(ID_unique, Site,Camera ,Season,  SumAnimal, MeanConf)%>%
+  dplyr::select(IMG_ID, ID_unique, Site,Camera ,Season,  SumAnimal, MeanConf)%>%
+  gsub("_1.JPG", "", IMG_ID) %>% 
+  gsub("_0.JPG", "", IMG_ID) %>% 
   distinct() %>%
   ungroup()
 
@@ -160,7 +163,7 @@ df_all$Site<-as.factor(df_all$Site)
 
 ```{r, echo = FALSE}
 
-df_all<-vroom::vroom("Kenya_Animal_No_Animal.csv")
+df_all<-vroom::vroom("Kenya_Animal_No_Animal1.csv")
 
 df_all$Site_f<-as.factor(df_all$Site)
 df_all$Site_f<-factor(df_all$Site_f, levels(df_all$Site_f)[c(5,2,4,3,1)])
@@ -186,7 +189,7 @@ image<-vroom::vroom("kenya_original_filepaths_working_filepaths_2019_10_18.csv",
 
 image$ID_unique<-image$filepath %>% 
                     gsub("M:/biome_health_project_files/country_files/kenya/raw_data//", "", .) %>%                        gsub(".JPG", "", . )%>% 
-                    gsub("_november", "/november", .) %>% 
+                    gsub("mara_november", "/november", .) %>% 
                     gsub("_october", "/october", .) %>% 
                     gsub("_repaired", "", .) %>% 
                     gsub("/100_BTCF","", . )
