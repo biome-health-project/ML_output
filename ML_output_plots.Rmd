@@ -518,7 +518,7 @@ dfs$site_code[dfs$site_code == "omc"]<-"OMC"
 
 ```{r, echo = FALSE}
 
-ef<-read.csv(here::here("effort/all_sites_effort.csv"))
+ef<-read.csv("all_sites_effort.csv")
 
 ef_site<- ef %>%
           group_by(site)%>%

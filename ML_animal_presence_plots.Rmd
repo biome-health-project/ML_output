@@ -1,0 +1,345 @@
+---
+title: "ML Output Kenya"
+author: "Fiona Spooner"
+date: "July 23, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(fig.width = 12, fig.height = 9)
+```
+
+
+```{r}
+library(here)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(reshape2)
+library(readr)
+library(scales)
+
+```
+
+
+
+####Animal vs No Animal
+
+Producing figures to show the total number of images at each site categorised as either Animal or no Animal
+
+```{r,eval = FALSE}
+
+lf<-list.files(here::here("/results_csvs/phase1"), pattern = "*_results.csv", full.names =  TRUE)
+
+filer<-function(file){
+  
+  file_in<-read.csv(file, header = FALSE)
+  file_in$filename<-basename(file)
+  return(file_in)  
+}
+
+files_out<-lapply(lf, filer)
+
+allp1<-do.call("rbind", files_out)
+
+write.csv(allp1, here::here("results_csvs/phase1/all_sites_seasons.csv"), row.names = FALSE)
+
+
+```
+
+
+```{r, echo = FALSE}
+
+allp1<-read.csv(here::here("results_csvs/phase1/all_sites_seasons.csv"), stringsAsFactors = FALSE)
+colnames(allp1)<-c("row_no", "IMG_ID","unsure", "Animal", "NoAnimal", "ConfAnim", "ConfNoAnim", "SiteSeason")
+
+
+```
+
+Formatting the ML output - this is specific to the kenya files data but it just creates a new columns for Site and Season, which are extracted from the file names 
+
+```{r, echo = FALSE}
+
+allp1$Site<-allp1$SiteSeason%>%
+              gsub("_november_results.csv", "", .)%>%
+              gsub("_october_results.csv", "", .)%>%
+              gsub("_november_repaired_results.csv", "", .)%>%
+              gsub("_october_repaired_results.csv", "", .)
+
+allp1$Season<-allp1$SiteSeason%>%
+              gsub("_results.csv", "", .)%>%
+              gsub("_repaired", "", .)%>%
+              gsub("mara_north_", "", .)%>%
+              gsub("mara_triangle_", "", .)%>%
+              gsub("naboisho_", "", .)%>%
+              gsub("omc_", "", .)
+```
+
+
+Getting rid of the summary rows at the end of each data sheet and getting rid of the square brackets in the Animal/No Animal columns
+
+```{r}
+
+alldf<-allp1[-which(allp1$Animal != "[0" & allp1$Animal != "[1"),]
+
+
+alldf$Animal[alldf$Animal == "[0"]<-0
+alldf$Animal[alldf$Animal == "[1"]<-1
+
+alldf$ConfAnim<-gsub("\\[","", alldf$ConfAnim)
+
+alldf$IMG_ID_nospl<-alldf$IMG_ID%>%
+                      gsub("_0.JPG","", .)%>%
+                      gsub("_1.JPG","", .)
+
+```
+
+Merging the split images together by summing the animal column. Anything with a 1 or 2 will be recoded as 1, and 0 will remain 0.
+
+```{r, eval = FALSE, echo = FALSE}
+
+alldf$Animal<-as.numeric(alldf$Animal)
+alldf$ConfAnim<-as.numeric(alldf$ConfAnim)
+
+alldf$ID_unique<-paste(alldf$Site, alldf$Season, alldf$IMG_ID_nospl, sep = "/")
+
+alldf<-alldf %>%
+  group_by(ID_unique)%>%
+  mutate(SumAnimal = sum(Animal), MeanConf = mean(ConfAnim), MaxConf = max(ConfAnim))
+
+alldf$Camera<-dirname(alldf$IMG_ID)
+
+
+df<-alldf%>%
+  dplyr::select(ID_unique, Site,Camera ,Season,  SumAnimal, MeanConf)%>%
+  distinct() %>%
+  ungroup()
+
+df$SumAnimal[df$SumAnimal == 2]<-1
+
+df$SumAnimalF<-as.factor(df$SumAnimal)   #creating a factor for animal presence - for plotting.
+
+cam_split<-strsplit(df$Camera, "/")
+
+get_first<-function(x){
+  image_out<-x[[1]]
+  return(image_out)
+  }
+
+cam_out<-lapply( cam_split,get_first)
+
+df$CamUnique<-unlist(cam_out)
+
+
+```
+
+```{r, eval = FALSE, echo =FALSE}
+
+camsum<-df %>%
+  group_by(CamUnique,SumAnimalF)%>%
+  #filter(MeanConf >= 0.9)%>%
+  summarise(Freq = n())
+
+#write.csv(camsum, "Camera_Animal_No_Animal.csv", row.names = FALSE)
+
+```
+
+```{r, eval = FALSE, echo = FALSE}
+
+df_tot<-df
+df_tot$Site<-"Total"
+
+df_all<-rbind(df, df_tot)
+df_all$Site<-as.factor(df_all$Site)
+
+#write.csv(df_all, "Kenya_Animal_No_Animal.csv", row.names = FALSE)
+```
+
+```{r, echo = FALSE}
+
+df_all<-read.csv("Kenya_Animal_No_Animal.csv", stringsAsFactors = FALSE)
+
+df_all$Site_f<-as.factor(df_all$Site)
+df_all$Site_f<-factor(df_all$Site_f, levels(df_all$Site_f)[c(5,2,4,3,1)])
+
+df_all$SumAnimalF<-as.factor(df_all$SumAnimalF)
+
+site_labs<- c("Total", "Mara North", "Mara Triangle", "Naboisho", "OMC")
+names(site_labs)<-c("Total", "mara_north", "mara_triangle", "naboisho", "omc")
+
+
+df_all$SiteCode<-df_all$Site
+df_all$SiteCode[df_all$SiteCode == "mara_north"]<-"MN"
+df_all$SiteCode[df_all$SiteCode == "mara_triangle"]<-"MT"
+df_all$SiteCode[df_all$SiteCode == "naboisho"]<-"NB"
+df_all$SiteCode[df_all$SiteCode == "omc"]<-"OMC"
+
+```
+
+```{r}
+ggplot(df_all, aes(SumAnimalF, fill = SumAnimalF))+
+  geom_bar()+
+  facet_wrap(.~Site_f, labeller = labeller(Site_f = site_labs))+
+  labs(x = "", y = "Number of Images")+
+  scale_x_discrete(labels=c("0" = "No Animal", "1" = "Animal"))+
+  scale_y_continuous(labels = comma)+
+  scale_fill_manual( values = c("0" = "black", "1" = "grey"))+ 
+  theme_bw()+
+  theme(axis.text.y = element_text(lineheight = 0.5 , size = 18),
+        axis.text.x = element_text(size = 14),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        legend.position = "none",
+        strip.text.x = element_text(size = 14))
+
+
+```
+
+```{r}
+
+sitesum<-df_all %>%
+  group_by(Site_f,SumAnimalF,  SiteCode)%>%
+  #filter(MeanConf >= 0.9)%>%
+  summarise(Freq = n())
+
+sitesum$SumAnimalF<-as.factor(sitesum$SumAnimalF)
+sitesum$SumAnimalF<-factor(sitesum$SumAnimalF, levels(sitesum$SumAnimalF)[c(2,1)])
+
+
+ggplot(sitesum, aes(x =Site_f ,y = Freq ,alpha = SumAnimalF, fill = Site_f))+
+  geom_bar(position="dodge", stat="identity")+
+  labs(x = "", y = "Number of Images", fill ="", alpha = "")+
+  scale_alpha_discrete(range = c(1, 0.35), labels = c("Animal", "No Animal"))+
+  scale_x_discrete(labels=c("mara_north" = "Mara North", "mara_triangle" = "Mara Triangle", "naboisho" = "Naboisho", "omc" = "OMC"))+
+  guides(fill = FALSE)+
+  scale_y_continuous(labels = comma)+
+  theme_bw()+
+  #scale_fill_manual(values = c("0" = "black", "1" = "grey"), labels = c("No Animal", "Animal"))+ 
+  theme(axis.text.y = element_text(lineheight = 0.5 , size = 18),
+        axis.text.x = element_text(size = 18),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        legend.text = element_text(size = 18))
+
+
+#write.csv(sitesum, "Kenya_Animal_No_Animal_Summary.csv", row.names = FALSE)
+
+```
+
+###Image counts with effort accounted for
+
+```{r}
+ef<-read.csv("all_sites_effort.csv", stringsAsFactors = FALSE)
+
+ef_sum <-ef %>%
+  group_by(site)%>%
+  summarise(sum_ef = sum(effort))
+
+ef_tot<-data.frame("Total",sum(ef$effort) )
+colnames(ef_tot)<-colnames(ef_sum)
+
+ef_all<-rbind(ef_tot, ef_sum)
+
+```
+
+```{r, echo = FALSE}
+
+site_ef<-merge(ef_all, sitesum, by.x = "site", by.y = "SiteCode")
+
+site_ef$FreqEff<-site_ef$Freq/site_ef$sum_ef
+
+
+```
+
+```{r}
+
+ggplot(site_ef, aes(x =Site_f ,y = FreqEff ,alpha = SumAnimalF, fill = Site_f))+
+  geom_bar(position="dodge", stat="identity")+
+  labs(x = "", y = "Number of Images per Camera Trap Day", fill ="", alpha = "")+
+  scale_alpha_discrete(range = c(1, 0.35), labels = c("Animal", "No Animal"))+
+  scale_x_discrete(labels=c("mara_north" = "Mara North", "mara_triangle" = "Mara Triangle", "naboisho" = "Naboisho", "omc" = "OMC"))+
+    scale_y_continuous(labels = comma)+
+  guides(fill = FALSE)+
+  theme_bw()+
+  #scale_fill_manual(values = c("0" = "black", "1" = "grey"), labels = c("No Animal", "Animal"))+ 
+  theme(axis.text.y = element_text(lineheight = 0.5 , size = 18),
+        axis.text.x = element_text(size = 18),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        legend.text = element_text(size = 18))
+
+```
+
+
+##Excluding images below 90% Confidence Threshold
+
+```{r, echo = FALSE}
+
+sitesum<-df_all %>%
+  group_by(Site_f,SumAnimalF,  SiteCode)%>%
+  filter(MeanConf >= 0.9)%>%
+  summarise(Freq = n())
+
+sitesum$SumAnimalF<-as.factor(sitesum$SumAnimalF)
+sitesum$SumAnimalF<-factor(sitesum$SumAnimalF, levels(sitesum$SumAnimalF)[c(2,1)])
+
+site_ef<-merge(ef_all, sitesum, by.x = "site", by.y = "SiteCode")
+
+site_ef$FreqEff<-site_ef$Freq/site_ef$sum_ef
+
+```
+
+####90% Confidence Threshold *not* accounting for effort
+
+```{r, echo = FALSE}
+sitesum<-df_all %>%
+  group_by(Site_f,SumAnimalF,  SiteCode)%>%
+  filter(MeanConf >= 0.9)%>%    ##might wanna change this to MaxConf
+  summarise(Freq = n())
+
+sitesum$SumAnimalF<-as.factor(sitesum$SumAnimalF)
+sitesum$SumAnimalF<-factor(sitesum$SumAnimalF, levels(sitesum$SumAnimalF)[c(2,1)])
+
+
+ggplot(sitesum, aes(x =Site_f ,y = Freq ,alpha = SumAnimalF, fill = Site_f))+
+  geom_bar(position="dodge", stat="identity")+
+  labs(x = "", y = "Number of Images", fill ="", alpha = "")+
+  scale_alpha_discrete(range = c(1, 0.35), labels = c("Animal", "No Animal"))+
+  scale_x_discrete(labels=c("mara_north" = "Mara North", "mara_triangle" = "Mara Triangle", "naboisho" = "Naboisho", "omc" = "OMC"))+
+  scale_y_continuous(labels = comma)+
+  guides(fill = FALSE)+
+  theme_bw()+
+  #scale_fill_manual(values = c("0" = "black", "1" = "grey"), labels = c("No Animal", "Animal"))+ 
+  theme(axis.text.y = element_text(lineheight = 0.5 , size = 18),
+        axis.text.x = element_text(size = 18),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        legend.text = element_text(size = 18))
+
+```
+
+####90% Confidence Threshold accounting for effort
+
+```{r}
+
+ggplot(site_ef, aes(x =Site_f ,y = FreqEff ,alpha = SumAnimalF, fill = Site_f))+
+  geom_bar(position="dodge", stat="identity")+
+  labs(x = "", y = "Number of Images\n per Camera Trap Day", fill ="", alpha = "")+
+  scale_alpha_discrete(range = c(1, 0.35), labels = c("Animal", "No Animal"))+
+  scale_x_discrete(labels=c("mara_north" = "Mara North", "mara_triangle" = "Mara Triangle", "naboisho" = "Naboisho", "omc" = "OMC"))+
+  scale_y_continuous(labels = comma)+
+  guides(fill = FALSE)+
+  theme_bw()+
+  #scale_fill_manual(values = c("0" = "black", "1" = "grey"), labels = c("No Animal", "Animal"))+ 
+  theme(axis.text.y = element_text(lineheight = 0.5 , size = 18),
+        axis.text.x = element_text(size = 18),
+        axis.title.x = element_text(size = 20),
+        axis.title.y = element_text(size = 20),
+        legend.text = element_text(size = 18))
+
+
+
+```
+
