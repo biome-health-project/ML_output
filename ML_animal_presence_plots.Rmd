@@ -195,25 +195,26 @@ df_all$IMG_no<-as.numeric(df_all$IMG_no)
 
 
 
-get_last<-function(x){
-  image_out<-x[[(length(x))]]
-  return(image_out)
-}
+# get_last<-function(x){
+#   image_out<-x[[(length(x))]]
+#   return(image_out)
+# }
+# 
+# cam_spl<-strsplit(df_all$Camera, "_")
+# cam_splout<-lapply(cam_spl,get_last)
+# cam_out<-do.call(rbind, cam_splout)
 
-cam_spl<-strsplit(df_all$Camera, "_")
-cam_splout<-lapply(cam_spl,get_last)
-cam_out<-do.call(rbind, cam_splout)
-
-df_all$Camera<-as.character(cam_out)
+df_all$Camera<-dirname(df_all$IMG_ID_nospl)  #removes everything before the _first_ underscore
+df_all$Camera_ID<-basename(df_all$Camera)  #removes everything before the _first_ underscore
+df_all$Camera_ID<-gsub("^[^_]*_", "",df_all$Camera_ID)  #removes everything before the _first_ underscore
 
 df_all$ab<-"a"
 
 
-abs<-which(grepl("101_BTCF",df_all$ID_unique) | grepl("b",df_all$Camera))
-
-
+abs<-which(grepl("101_BTCF",df_all$ID_unique))
 df_all$ab[abs]<-"b"
-
+abs<-which(grepl("b",df_all$Camera_ID))
+df_all$ab[abs]<-"b"
 
 
 df_all$IMG_no<-ifelse(df_all$ab == "b", df_all$IMG_no + 10000, df_all$IMG_no)
@@ -225,22 +226,43 @@ df_all$IMG_no<-str_pad(df_all$IMG_no,6 , pad = "0")
 
 Sensor<-"CT"
 Year<-"2018"
+
+df_all$new_filepath<-paste0("M:/biome_health_project_files/country_files/kenya/working_data/", df_all$SiteCode, "/", df_all$Location, "/", Sensor, "/", Year, "/", Year, "_", df_all$Location, "_",df_all$IMG_no, ".JPG", sep ="")
+
+#write.csv(df_all, "Kenya_Animal_No_Animal_Filepath.csv", row.names = FALSE)
+
 ```
 
 
+You can ignore below here
+
 ```{r}
-df_all$new_filepath<-paste0("M:/biome_health_project_files/country_files/kenya/working_data/", df_all$SiteCode, "/", df_all$Location, "/", Sensor, "/", Year, "/", Year, "_", df_all$Location, "_",df_all$IMG_no, ".JPG", sep ="")
+
+image<-vroom::vroom("kenya_original_filepaths_working_filepaths_2019_10_18.csv",delim = ",")
+
+
+df_image<-merge(image[,c("IMG_ID_nospl", "new_file_structure")], df_sub, by = "IMG_ID_nospl")
 
 
 
 issues<-df_all[!df_all$new_filepath %in% image$new_file_structure,]
 
+issues_i<-image[!image$new_file_structure %in% df_all$new_filepath,]
+
+mn37<-df_all %>% 
+  filter(Location == "MN37" & Season == "october")
+
+
+mn37_i<-issues%>% 
+  filter(Location == "MN37" & Season == "october") %>% 
+  mutate(IMG_no = as.numeric(IMG_no)) %>% 
+  arrange(IMG_no)
+
 
 
 ```
 
 ```{r}
-image<-vroom::vroom("kenya_original_filepaths_working_filepaths_2019_10_18.csv",delim = ",")
 
 image$IMG_ID_nospl<-image$filepath %>% 
                 gsub(".JPG", "", .) %>% 
