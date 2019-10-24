@@ -108,16 +108,14 @@ alldf$ID_unique<-paste(alldf$Site, alldf$Season, alldf$IMG_ID_nospl, sep = "/")
 
 alldf<-alldf %>%
   group_by(ID_unique)%>%
-  mutate(SumAnimal = sum(Animal), MeanConf = mean(ConfAnim), MaxConf = max(ConfAnim))
+  mutate(SumAnimal = sum(Animal), MeanConf = mean(ConfAnim), MaxConf = max(ConfAnim)) %>% 
   ungroup()
   
 alldf$Camera<-dirname(alldf$IMG_ID)
 
 
 df<-alldf%>%
-  dplyr::select(IMG_ID, ID_unique, Site,Camera ,Season,  SumAnimal, MeanConf)%>%
-  gsub("_1.JPG", "", IMG_ID) %>% 
-  gsub("_0.JPG", "", IMG_ID) %>% 
+  dplyr::select(IMG_ID_nospl, ID_unique, Site,Camera ,Season,  SumAnimal, MeanConf)%>%
   distinct() %>%
   ungroup()
 
@@ -163,7 +161,10 @@ df_all$Site<-as.factor(df_all$Site)
 
 ```{r, echo = FALSE}
 
-df_all<-vroom::vroom("Kenya_Animal_No_Animal1.csv")
+df_all<-vroom::vroom("Kenya_Animal_No_Animal.csv")
+
+df_all<-df_all %>% 
+  filter(Site != "Total")
 
 df_all$Site_f<-as.factor(df_all$Site)
 df_all$Site_f<-factor(df_all$Site_f, levels(df_all$Site_f)[c(5,2,4,3,1)])
@@ -173,6 +174,13 @@ df_all$SumAnimalF<-as.factor(df_all$SumAnimalF)
 site_labs<- c("Total", "Mara North", "Mara Triangle", "Naboisho", "OMC")
 names(site_labs)<-c("Total", "mara_north", "mara_triangle", "naboisho", "omc")
 
+loc_spl<-strsplit(df_all$Camera, "_")
+
+loc_splout<-lapply(loc_spl,get_first)
+loc_out<-do.call(rbind, loc_splout)
+
+
+df_all$Location<-as.character(loc_out)
 
 df_all$SiteCode<-df_all$Site
 df_all$SiteCode[df_all$SiteCode == "mara_north"]<-"MN"
@@ -181,27 +189,88 @@ df_all$SiteCode[df_all$SiteCode == "naboisho"]<-"NB"
 df_all$SiteCode[df_all$SiteCode == "omc"]<-"OMC"
 
 
+df_all$IMG_no<-basename(df_all$IMG_ID_nospl)
+df_all$IMG_no<-gsub("IMG_", "",df_all$IMG_no)
+df_all$IMG_no<-as.numeric(df_all$IMG_no)
+
+
+
+get_last<-function(x){
+  image_out<-x[[(length(x))]]
+  return(image_out)
+}
+
+cam_spl<-strsplit(df_all$Camera, "_")
+cam_splout<-lapply(cam_spl,get_last)
+cam_out<-do.call(rbind, cam_splout)
+
+df_all$Camera<-as.character(cam_out)
+
+df_all$ab<-"a"
+
+
+abs<-which(grepl("101_BTCF",df_all$ID_unique) | grepl("b",df_all$Camera))
+
+
+df_all$ab[abs]<-"b"
+
+
+
+df_all$IMG_no<-ifelse(df_all$ab == "b", df_all$IMG_no + 10000, df_all$IMG_no)
+
+df_all$IMG_no<-ifelse(df_all$Season == "november", df_all$IMG_no + 20000, df_all$IMG_no)
+
+df_all$IMG_no<-str_pad(df_all$IMG_no,6 , pad = "0")
+
+
+Sensor<-"CT"
+Year<-"2018"
+```
+
+
+```{r}
+df_all$new_filepath<-paste0("M:/biome_health_project_files/country_files/kenya/working_data/", df_all$SiteCode, "/", df_all$Location, "/", Sensor, "/", Year, "/", Year, "_", df_all$Location, "_",df_all$IMG_no, ".JPG", sep ="")
+
+
+
+issues<-df_all[!df_all$new_filepath %in% image$new_file_structure,]
+
+
 
 ```
 
 ```{r}
 image<-vroom::vroom("kenya_original_filepaths_working_filepaths_2019_10_18.csv",delim = ",")
 
-image$ID_unique<-image$filepath %>% 
-                    gsub("M:/biome_health_project_files/country_files/kenya/raw_data//", "", .) %>%                        gsub(".JPG", "", . )%>% 
-                    gsub("mara_november", "/november", .) %>% 
-                    gsub("_october", "/october", .) %>% 
-                    gsub("_repaired", "", .) %>% 
-                    gsub("/100_BTCF","", . )
+image$IMG_ID_nospl<-image$filepath %>% 
+                gsub(".JPG", "", .) %>% 
+                gsub("M:/biome_health_project_files/country_files/kenya/raw_data//mara_north_november/", "", .) %>% 
+                gsub("M:/biome_health_project_files/country_files/kenya/raw_data//mara_north_october/" ,"", .) %>% 
+                gsub("M:/biome_health_project_files/country_files/kenya/raw_data//mara_triangle_november/" ,"", .) %>%                                            gsub("M:/biome_health_project_files/country_files/kenya/raw_data//mara_triangle_october/" ,"", .) %>%                                             gsub("M:/biome_health_project_files/country_files/kenya/raw_data//mara_north_october/" ,"", .) %>% 
+                gsub("M:/biome_health_project_files/country_files/kenya/raw_data//naboisho_november_repaired/" ,"", .) %>% 
+                gsub("M:/biome_health_project_files/country_files/kenya/raw_data//naboisho_october_repaired/" ,"", .) %>%
+                gsub("M:/biome_health_project_files/country_files/kenya/raw_data//omc_october_repaired/" ,"", .) %>% 
+                gsub("M:/biome_health_project_files/country_files/kenya/raw_data//omc_november/" ,"", .) 
 
+
+head(image$ID_unique)
+
+#image<-image %>% 
+#            mutate(IMG_ID_nospl = paste(basename(dirname(ID_unique)),basename(ID_unique), sep = "/"))
+  
+# image<-image %>% 
+#             mutate(IMG_ID_nospl = paste(basename(dirname(ID_unique)),basename(ID_unique), sep = "/"))
+# 
+
+      
 df_sub<-df_all %>% 
   filter(Site != "Total" & Site_f != "Total")
 
 
-df_image<-merge(image[,c("ID_unique", "new_file_structure")], df_sub, by = "ID_unique")
+df_image<-merge(image[,c("IMG_ID_nospl", "new_file_structure")], df_sub, by = "IMG_ID_nospl")
 
 
-not_in<-image[!image$ID_unique %in% df_sub$ID_unique,]
+not_in<-image[!image$IMG_ID_nospl %in% df_sub$IMG_ID_nospl,]
 
 ```
 
