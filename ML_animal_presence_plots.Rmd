@@ -116,8 +116,7 @@ alldf$Camera<-dirname(alldf$IMG_ID)
 
 df<-alldf%>%
   dplyr::select(IMG_ID_nospl, ID_unique, Site,Camera ,Season,  SumAnimal, MeanConf)%>%
-  distinct() %>%
-  ungroup()
+  distinct() 
 
 df$SumAnimal[df$SumAnimal == 2]<-1
 
@@ -161,7 +160,7 @@ df_all$Site<-as.factor(df_all$Site)
 
 ```{r, echo = FALSE}
 
-df_all<-vroom::vroom("Kenya_Animal_No_Animal.csv")
+#df_all<-vroom::vroom("Kenya_Animal_No_Animal.csv")
 
 df_all<-df_all %>% 
   filter(Site != "Total")
